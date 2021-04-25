@@ -84,7 +84,7 @@ int main() {
 	char i = 0, data[33];
 	while (true) {
 		memset(data, 0, sizeof(data));
-		thread_sleep_for(500);
+		thread_sleep_for(2000);
 
 		data[0] = 0x71;
 		i2c.write(addr, data, 1, true);
@@ -93,7 +93,19 @@ int main() {
 		i2c.read( addr, data, 33);
 
 		printf("%02x ", i);
-		for (int j = 0; j < sizeof(data); j++)
+		for (int j = 0; j < 33; j++)
+			printf("%02x ", data[j]);
+		printf("\r\n");
+
+		
+		data[0] = 0x72;
+		i2c.write(addr, data, 1, true);
+
+		data[0] = 0x00;
+		i2c.read( addr, data, 15);
+
+		printf("-- ");
+		for (int j = 0; j < 15; j++)
 			printf("%02x ", data[j]);
 		printf("\r\n");
 		i++;
