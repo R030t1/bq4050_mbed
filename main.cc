@@ -1,12 +1,15 @@
 #include "mbed.h"
-#include <string.h>
-
-#include <chrono>
-using namespace std::chrono_literals;
 
 #include "nanopb/pb_common.h"
 #include "nanopb/pb_encode.h"
 #include "bq4050.pb.h"
+
+
+#include <string.h>
+
+
+#include <chrono>
+using namespace std::chrono_literals;
 
 enum bq4050_register_type {
 	none, u1, u2, u4, i1, i2, i4, h1, h2, h4, f, s
