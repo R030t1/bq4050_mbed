@@ -1,5 +1,7 @@
 #include "mbed.h"
 
+#include "mbedtls/sha1.h"
+
 #include "nanopb/pb_common.h"
 #include "nanopb/pb_encode.h"
 #include "bq4050.pb.h"
@@ -83,15 +85,126 @@ struct bq4050_register {
 	{ .type =  s, .addr = 0x72, }, // r		DAStatus2 (combined stats)
 };
 
+// Minimum viable use:
+//   1. Set DesignCapacity and DesignVoltage.
+//   2. Enable lifetime monitoring.
+
+int smbus_block_read(I2C &i2c, int addr, char *data) {
+	i2c.read(addr, data, 1, true);
+	i2c.read(addr, &data[1], data[0]);
+}
+
 int main() {
+	mbedtls_sha1_context dg;
+	//mbedtls_sha1_init(&dg);
+	//mbedtls_sha1_starts_ret(&dg);
+
+	DigitalOut led(D13);
+
 	int addr = 0x16;
 	I2C i2c(I2C_SDA, I2C_SCL);
 	i2c.frequency(100000);
 
 	char i = 0, data[33];
 	while (true) {
+		led = !led;
 		memset(data, 0, sizeof(data));
-		thread_sleep_for(2000);
+		thread_sleep_for(500);
+
+		data[0] = 0x0d; data[1] = 0x00; data[2] = 0x00;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 1);
+
+		printf("%02x| %d\r\n", i, data[0]);
+
+		int opstatus;
+
+		/*
+
+		// OperationStatus
+		data[0] = 0x54; data[1] = 0x00; data[2] = 0x00;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 5);
+
+		printf("%02x| ", i);
+		for (int j = 0; j < 5; j++)
+			printf("%02x ", data[j]);
+
+		opstatus = 
+			(data[1] <<  0) | (data[2] <<  8) |
+			(data[3] << 16) | (data[4] << 24);
+		printf(" (%x %x)",
+			(opstatus & (1 << 9)) >> 9,
+			(opstatus & (1 << 8)) >> 8
+		);
+		printf("\r\n");
+
+		*/
+
+		memset(data, 0, sizeof(data));
+		data[0] = 0x44; data[1] = 0x54; data[2] = 0x00;
+		/*i2c.start();
+		i2c.write(addr, data, 3,  true);
+		i2c.stop();*/
+		i2c.write(addr, data, 3, true);
+		i2c.read( addr, data, 12);
+		
+		printf("--| ");
+		for (int j = 0; j < 12; j++)
+			printf("%02x ", data[j]);
+
+		opstatus = 
+			(data[2] <<  0) | (data[3] <<  8) |
+			(data[4] << 16) | (data[5] << 24);
+		printf(" (%x %x)",
+			(opstatus & (1 << 9)) >> 9,
+			(opstatus & (1 << 8)) >> 8
+		);
+		printf("\r\n");
+
+		/*
+
+		// BatteryStatus
+		data[0] = 0x16; data[1] = 0x00; data[2] = 0x00;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 2);
+
+		int bq4050_errno = (data[1] << 8 | data[0]) & 0x0f;
+		printf("--| %02d\r\n", bq4050_errno);
+
+		data[0] = 0x44; data[1] = 0x71; data[2] = 0x00;
+		i2c.write(addr, data, 3, true);
+		i2c.read( addr, data, 33);
+
+		printf("--| ");
+		for (int j = 0; j < 33; j++)
+			printf("%02x ", data[j]);
+		printf("\r\n");
+
+		data[0] = 0x71; data[1] = 0x00; data[2] = 0x00;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 33);
+		
+		printf("--| ");
+		for (int j = 0; j < 33; j++)
+			printf("%02x ", data[j]);
+		printf("\r\n");
+
+		*/
+
+		/*
+		 * 0x0 = OK
+		 * 0x1 = Busy
+		 * 0x2 = ReservedCommand
+		 * 0x3 = UnsupportedCommand
+		 * 0x4 = AccessDenied
+		 * 0x5 = Overflow/Underflow
+		 * 0x6 = BadSize
+		 * 0x7 = UnknownError
+		 */
+
+		i++;
+		continue;
 
 		data[0] = 0x71;
 		i2c.write(addr, data, 1, true);

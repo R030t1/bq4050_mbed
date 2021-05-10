@@ -1,5 +1,5 @@
 {
-    "requires": ["bare-metal", "events"],
+    "requires": ["bare-metal", "events", "mbedtls"],
     "target_overrides": {
         "*": {
             "platform.stdio-baud-rate": 230400,
