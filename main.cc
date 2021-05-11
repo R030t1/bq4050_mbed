@@ -89,9 +89,20 @@ struct bq4050_register {
 //   1. Set DesignCapacity and DesignVoltage.
 //   2. Enable lifetime monitoring.
 
-int smbus_block_read(I2C &i2c, int addr, char *data) {
-	i2c.read(addr, data, 1, true);
-	i2c.read(addr, &data[1], data[0]);
+// TODO: Retturn size from block read instead of passing it in. It's the first
+// byte. Unable to construct working algortihm out of mbed primitives; there
+// is a long pause after writing the 0x44 before the read that causes device to
+// abort.
+void bq4050_mfr(I2C &i2c, int addr, uint16_t cmd, int n, char *data) {
+	char ob[33] = { 0 };
+	
+	ob[0] = 0x44; ob[1] = 2;
+	ob[2] = (cmd & 0x00ff) << 0; ob[3] = (cmd & 0xff00) >> 8;
+	i2c.write(addr, ob, 4);
+
+	ob[1] = ob[2] = ob[3] = 0; // ob[0] = 0x44;
+	i2c.write(addr, ob, 1, true);
+	i2c.read( addr, data, n);
 }
 
 int main() {
@@ -119,8 +130,6 @@ int main() {
 
 		int opstatus;
 
-		/*
-
 		// OperationStatus
 		data[0] = 0x54; data[1] = 0x00; data[2] = 0x00;
 		i2c.write(addr, data, 1, true);
@@ -139,23 +148,17 @@ int main() {
 		);
 		printf("\r\n");
 
-		*/
+		int n = 6;
 
 		memset(data, 0, sizeof(data));
-		data[0] = 0x44; data[1] = 0x54; data[2] = 0x00;
-		/*i2c.start();
-		i2c.write(addr, data, 3,  true);
-		i2c.stop();*/
-		i2c.write(addr, data, 3, true);
-		i2c.read( addr, data, 12);
-		
+		bq4050_mfr(i2c, addr, 0x0054, 6, data);
 		printf("--| ");
-		for (int j = 0; j < 12; j++)
+		for (int j = 0; j < n; j++)
 			printf("%02x ", data[j]);
 
 		opstatus = 
-			(data[2] <<  0) | (data[3] <<  8) |
-			(data[4] << 16) | (data[5] << 24);
+			(data[3] <<  0) | (data[4] <<  8) |
+			(data[5] << 16) | (data[6] << 24);
 		printf(" (%x %x)",
 			(opstatus & (1 << 9)) >> 9,
 			(opstatus & (1 << 8)) >> 8
