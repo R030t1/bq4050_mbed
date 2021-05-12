@@ -87,7 +87,12 @@ struct bq4050_register {
 
 // Minimum viable use:
 //   1. Set DesignCapacity and DesignVoltage.
-//   2. Enable lifetime monitoring.
+//   2. Enable lifetime monitoring.				0x44 0x0023
+//
+// Stretch:
+//   1. Set security keys.						0x44 0x0035
+//   2. Set authentication key.					0x44 0x0037
+//
 
 // TODO: Retturn size from block read instead of passing it in. It's the first
 // byte. Unable to construct working algortihm out of mbed primitives; there
@@ -116,7 +121,57 @@ int main() {
 	I2C i2c(I2C_SDA, I2C_SCL);
 	i2c.frequency(100000);
 
-	char i = 0, data[33];
+	char i = 0, data[34];
+
+	int dfaddr = 0x4000;
+
+	/* Reset, no idea what this really does. Just CPU?
+	data[0] = 0x44; data[1] = 0x02;
+	data[2] = 0x41; data[3] = 0x00;
+	i2c.write(addr, data, 4);
+	*/
+
+	/* Successfully writes design capacity. Voltage is two bytes after.
+	 * There are other addresses that match the design capacity but only one
+	 * that matches the design voltage, around 0x4440.
+	int a = 0x4440 + 13; // + 13
+	data[0] = 0x44; data[1] = 0x02;
+	data[2] = (a & 0x00ff) >> 0;
+	data[3] = (a & 0xff00) >> 8;
+	i2c.write(addr, data, 4);
+
+	i2c.write(addr, data, 1, true);
+	i2c.read( addr, data, 5);
+
+	printf("%04x: %02x %02x\r\n", a, data[3], data[4]);
+
+	data[0] = 0x44; data[1] = 0x04;
+	data[2] = (a & 0x00ff) >> 0;
+	data[3] = (a & 0xff00) >> 8;
+	data[4] = 0xac; data[5] = 0x0d;
+	i2c.write(addr, data, 6);
+	*/
+
+	/*
+	for (int k = dfaddr; k < 0x5fff; k += 32) {
+		data[0] = 0x44; data[1] = 0x02;
+		data[2] = (k & 0x00ff) >> 0;
+		data[3] = (k & 0xff00) >> 8;
+		i2c.write(addr, data, 4);
+
+		data[1] = data[2] = data[3] = 0; // data[0] = 0x44;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 34);
+
+		printf("%04x: ", k);
+		for (int j = 3; j < 34; j++)
+			printf("%02x ", data[j]);
+		printf("\r\n");
+	}
+
+	while (true);
+	*/
+
 	while (true) {
 		led = !led;
 		memset(data, 0, sizeof(data));
@@ -148,10 +203,11 @@ int main() {
 		);
 		printf("\r\n");
 
-		int n = 6;
+		int n;
 
 		memset(data, 0, sizeof(data));
-		bq4050_mfr(i2c, addr, 0x0054, 6, data);
+		n = 7;
+		bq4050_mfr(i2c, addr, 0x0054, 7, data);
 		printf("--| ");
 		for (int j = 0; j < n; j++)
 			printf("%02x ", data[j]);
@@ -164,6 +220,28 @@ int main() {
 			(opstatus & (1 << 8)) >> 8
 		);
 		printf("\r\n");
+
+		memset(data, 0, sizeof(data));
+		n = 12;
+		bq4050_mfr(i2c, addr, 0x0002, 12, data);
+		printf("--| ");
+		for (int j = 0; j < n; j++)
+			printf("%02x ", data[j]);
+		printf("\r\n");
+
+		memset(data, 0, sizeof(data));
+		data[0] = 0x18;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 2);
+		int descap = data[1] << 8 | data[0];
+		printf("--| %04x %d\r\n", descap, descap);
+		
+		memset(data, 0, sizeof(data));
+		data[0] = 0x19;
+		i2c.write(addr, data, 1, true);
+		i2c.read( addr, data, 2);
+		int desvol = data[1] << 8 | data[0];
+		printf("--| %04x %d\r\n", desvol, desvol);
 
 		/*
 
